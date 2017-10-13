@@ -1,6 +1,26 @@
-# Pulling General Data on Votes at the European Council (2006-2017)
-José M. Reis
-13/10/2017
+---
+title: "Pulling General Data on Votes at the European Council (2006-2017)"
+author: "J. M. Reis"
+date: "13/10/2017"
+output: 
+html_document: 
+  keep_md: yes
+  toc: yes
+pdf_document:
+  highlight: yes
+  toc: yes
+  number_sections: yes
+---
+<meta charset="utf-8">
+
+[//]: # (Changing the default text allignment to justified on both sides. Btw, this is how you make comments in Rmd!)
+<style>
+body {text-align: justify}
+</style>
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, eval = FALSE)
+```
 
 ## Pulling the data
 
@@ -291,3 +311,6 @@ write.csv(councilPubVote_data,
 
 ################################# END ############################################
 ```
+
+
+

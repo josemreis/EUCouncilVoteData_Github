@@ -1,29 +1,3 @@
-# Pulling General Data on Votes at the European Council (2006-2017)
-José M. Reis
-13/10/2017
-
-## Pulling the data
-
-In this session we will extract the dates and title of all public votes at the European Council website. One could've used the [European Union API] (http://api.epdb.eu/), however it covers less years.
-
-We start by loading some relevant packages. "Rvest" will be used to parse and extract information from the page's html code. "RCurl" will be used to manage the HTTP requests. We will mostly resort to RCurl::getURL() for that. Tidyverse packages, namely "dplyr", "stringr"", and "lubridate" will mostly be used for shapping up the extracted content.
-
-```{r}
-# packages
-library(lubridate)
-require(tidyverse)
-require(stringr)
-require(RCurl)
-require(rvest)
-require(XML)
-
-options(stringsAsFactors = FALSE)
-```
-
-
-### Start
-
-```{r}
 ############################################################################################################
 
 # author: J.M.Reis
@@ -35,34 +9,37 @@ options(stringsAsFactors = FALSE)
 #[1] "2017-10-13
 #
 ###########################################################################################################
-```
 
+####set working directory in subdirectory GetAndClean--------------------------------------------------------
 
-### Extraction strategy
+setwd(paste0(getwd(), "/GetAndClean"))
 
-The data on title of public vote and its date can be found in the yearly pages. There is one master page for each year, and there we can find a find a variable number of pages (depending on the number of results). We will have to scrape the number of pages, and then loop around them exploiting the static URL of the website (which discrimiantes not only year but also page).
+#### Load the packages -------------------------------------------------------------------------------------
 
-We start by setting the static URLs.
+library(lubridate)
+require(tidyverse)
+require(stringr)
+require(RCurl)
+require(rvest)
+require(XML)
 
-```{r}
+options(stringsAsFactors = FALSE)
+
+#### Extraction strategy -------------------------------------------------------------------------
+
+### The data on title of public vote and its date can be found in the yearly pages. There is one master page for each year, and within it we can find a find a variable number of pages (depending on the number of results).
+
+### The first step is to set the URLs
+
 ## The static URL is always the same
 staticURL1 <- "http://www.consilium.europa.eu/register/en/content/out/?PUB_DOC=%3E0&DOC_SUBJECT=VOTE&ORDERBY=DOC_DATE+DESC&DOC_LANCD=EN&DOC_YEAR="# After year, we put the relevant year yyyy
 
 staticURL2 <- "&i=VT&ROWSPP=25&typ=SET&NRROWS=500&RESULTSET="# after= we put the page we are currently scraping it always goes from 1:lastpage
-```
 
-Then, we can already define the first components of the first dynamic part of the URL, a year-vector.
-
-```{r}
- #the dynURL for years will be a numerical vector 
+# the dynURL for years will be a numerical vector 
 dynURL_year <- c(2006:2017)
 
-```
-
-For the second dynUrl, the page number, we will have to create a function that goes to the main page of the year, extracts the value of the node in the postion of the last page and uses that number to set the parameters for the page loop. The following function should do.
-
-```{r}
-# for the dynURL_page we need first to create a function which tells us the numerical value of the last page.
+# for the dynURL_page we need first to create a function which tells us the numerical valua of the last page.
 findLastPage <- function(yyyy=as.numeric()) {
   # selector for the last page
   cssLastPage <- ".last-page a"
@@ -79,13 +56,54 @@ findLastPage <- function(yyyy=as.numeric()) {
   return(lastPage)
   
 }
-```
 
-### The extraction function
+## dyn_URL page will be defined inside of the loop using the findLastPage function
 
-This function takes a year, as numeric, as input goes to the web page with the public vote data from the council for taht year, and loops across all the existant pages extracting title and date, cleans them up, and returns a dataframe.
+#### simulation --------------------------------------------------------------------------------
 
-```{r}
+## The static URL is always the same
+staticURL1 <- "http://www.consilium.europa.eu/register/en/content/out/?PUB_DOC=%3E0&DOC_SUBJECT=VOTE&ORDERBY=DOC_DATE+DESC&DOC_LANCD=EN&DOC_YEAR="# After year, we put the relevant year yyyy
+
+staticURL2 <- "&i=VT&ROWSPP=25&typ=SET&NRROWS=500&RESULTSET="# after= we put the page we are currently scraping it always goes from 1:lastpage
+
+# the dynURL for years will be a numerical vector 
+dynURL_year <- c(2006:2017)
+(sampleYear <- sample(dynURL_year,1))
+x <- findLastPage(sampleYear)
+dynURL_page <- c(1:x)
+
+## get the titles
+# css selectors
+cssTitle <- "td.no-border a"
+# extraction
+test <- getURL(paste0(staticURL1,dynURL_year[dynURL_year==sampleYear],staticURL2, dynURL_page[x]))%>%
+  read_html()%>%
+  html_nodes(cssTitle)%>%
+  html_text()%>%
+  str_trim()
+#remove empty spaces
+(test <- test[nchar(test)>1])
+
+##get the dates
+(sampleYear <- sample(dynURL_year,1))
+x <- findLastPage(sampleYear)
+dynURL_page <- c(1:x)
+
+# css sel
+cssDate <- "td:nth-child(3) div"
+#extraction
+test <- getURL(paste0(staticURL1,dynURL_year[dynURL_year==sampleYear],staticURL2, dynURL_page[x]))%>%
+  read_html()%>%
+  html_nodes(cssDate)%>%
+  html_text()%>%
+  str_trim()
+#remove empty spaces
+(test <- test[nchar(test)>1])
+
+#### The function --------------------------------------------------------------------------------------
+
+### This function takes a year, as numeric, as input goes to the web page with the public vote data from the council for taht year, and loops across all the existant pages extracting title and date, cleans them up, and makes a dataframe with them.
+
 conciliumVoteData <- function(yyyy=numeric()) {
 
 ### setting some things up for the extraction
@@ -178,13 +196,8 @@ conciliumVoteData <- function(yyyy=numeric()) {
     return(voteData_df2)
   }
 }  
-```
-
-### Generate voting data data frames for each year
-
-Now we just have to call the function on each of the available years.
-
-```{r}
+  
+#### Get the voting data and save it in different dataframes--------------------------------------------
 ### councils votes from 2006
 publicVotes_2006 <- conciliumVoteData(yyyy = 2006)
 
@@ -263,13 +276,7 @@ publicVotes_2017 <- conciliumVoteData(yyyy = 2017)
 
 save(publicVotes_2017, 
      file="data/publicVotes_2017.RData")
-```
 
-### Merge the data frames and export them
-
-Finally, we merge all the yearly dataframes into one and export them.
-
-```{r}
 #### All in one ----------------------------------------------------------------------------------------
 merged_publicVote<- Reduce(function(x, y) merge(x, y, all=TRUE), list(publicVotes_2006, publicVotes_2007, publicVotes_2008, publicVotes_2009, publicVotes_2010, publicVotes_2011, publicVotes_2012, publicVotes_2013, publicVotes_2014, publicVotes_2015, publicVotes_2016, publicVotes_2017))
 
@@ -288,6 +295,3 @@ save(councilPubVote_data,
      file="data/councilPubVote_data.RData")
 write.csv(councilPubVote_data,
           file="data/councilPubVote_data.csv")
-
-################################# END ############################################
-```
